@@ -6,18 +6,21 @@ from io import BytesIO
 from pathlib import Path
 
 
-@st.cache_data(show_spinner=True)
-def load_data(excel_path: str) -> pd.DataFrame:
-    """
-    Đọc dữ liệu từ:
-    - Đường dẫn local (nếu excel_path không rỗng)
-    - Hoặc URL Google Sheets (nếu excel_path rỗng)
-    """
-    GSHEET_URL = (
-        "https://docs.google.com/spreadsheets/d/"
-        "1UgZ3gP8Ubbgb8-lMYGWnBSvl1jCfIE4Q/export?format=xlsx"
-    )
+# URL tải thẳng từ OneDrive/SharePoint (đã thêm ?download=1)
+ONEDRIVE_URL = (
+    "https://stneuedu-my.sharepoint.com/:x:/g/personal/11230786_st_neu_edu_vn/"
+    "IQAQAcg4aM2VT72GrMwPOZHYATsP7H2tVAzgZVZ0almZXZk?download=1"
+)
+ONEDRIVE_URL_ALT = ONEDRIVE_URL  # có thể thay bằng link backup nếu cần
 
+
+@st.cache_data(show_spinner=True)
+def load_data(excel_path: str | None = None) -> pd.DataFrame:
+    """
+    Đọc dữ liệu:
+    - Nếu excel_path có giá trị: ưu tiên đọc local (chỉ khi chạy trên máy có file).
+    - Nếu excel_path rỗng: đọc từ OneDrive link tải thẳng. Nếu lỗi, thử URL ALT.
+    """
     try:
         if excel_path:
             path = Path(excel_path)
@@ -26,10 +29,15 @@ def load_data(excel_path: str) -> pd.DataFrame:
                 return pd.DataFrame()
             df = pd.read_excel(path, engine="openpyxl")
         else:
-            # Đọc từ Google Sheets (xuất xlsx)
-            resp = requests.get(GSHEET_URL)
-            resp.raise_for_status()
-            df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
+            try:
+                resp = requests.get(ONEDRIVE_URL)
+                resp.raise_for_status()
+                df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
+            except Exception:
+                # Thử URL thay thế (backup)
+                resp = requests.get(ONEDRIVE_URL_ALT)
+                resp.raise_for_status()
+                df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
     except Exception as e:
         st.error(f"Lỗi khi đọc dữ liệu: {e}")
         return pd.DataFrame()
@@ -165,12 +173,12 @@ def main():
         "Dashboard tương tác cho phép lọc theo P1, P2, BRAND, Định lượng, Month và xem bảng giá thị trường, doanh thu theo seller."
     )
 
-    # Sidebar: chọn file dữ liệu (mặc định là Database_updated_2112.xlsx trong cùng thư mục)
-    default_path = "Database_updated_2112.xlsx"
+    # Sidebar: chọn file dữ liệu (mặc định để trống -> đọc từ Google Sheets)
+    default_path = ""
     st.sidebar.header("Thiết lập dữ liệu")
     data_path = st.sidebar.text_input("Đường dẫn file Excel dữ liệu", value=default_path)
 
-    df = load_data(data_path)
+    df = load_data(data_path if data_path.strip() else None)
     if df.empty:
         st.stop()
 
