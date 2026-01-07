@@ -201,11 +201,17 @@ def main():
         p2_options = []
     p2_values = st.sidebar.multiselect("P2", options=p2_options, default=[])
 
-    # BRAND filter
-    brand_options = sorted(df["BRAND"].dropna().unique()) if "BRAND" in df.columns else []
-    brand_values = st.sidebar.multiselect(
-        "BRAND", options=brand_options, default=[]
-    )
+    # BRAND filter phụ thuộc vào P1 và P2
+    if "BRAND" in df.columns:
+        df_for_brand = df
+        if p1_values:
+            df_for_brand = df_for_brand[df_for_brand["P1"].isin(p1_values)]
+        if p2_values:
+            df_for_brand = df_for_brand[df_for_brand["P2"].isin(p2_values)]
+        brand_options = sorted(df_for_brand["BRAND"].dropna().unique())
+    else:
+        brand_options = []
+    brand_values = st.sidebar.multiselect("BRAND", options=brand_options, default=[])
 
     # Month filter
     month_options = sorted(df["Month"].dropna().unique()) if "Month" in df.columns else []
