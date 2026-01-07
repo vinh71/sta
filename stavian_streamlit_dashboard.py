@@ -175,7 +175,7 @@ def main():
 
     # Sidebar: thông tin bộ dữ liệu (chỉ hiển thị text, không có input)
     st.sidebar.header("Thiết lập dữ liệu")
-    st.sidebar.write("Bộ dữ liệu: **Database_updated_2112.xlsx** (đọc từ OneDrive)")
+    st.sidebar.write("Bộ dữ liệu: **Database_updated_2112.xlsx** ")
 
     # Luôn đọc dữ liệu từ OneDrive (hoặc local khi chạy trên máy anh nếu truyền đường dẫn khác vào load_data)
     df = load_data(None)
@@ -306,19 +306,42 @@ def main():
         else:
             st.info("Không có đủ dữ liệu để tính giá thị trường.")
 
-    # Thống kê doanh thu sellers
+    # Thống kê doanh thu sellers (dùng toàn bộ dữ liệu sau filter, không loại dòng thiếu Unit_Price)
     st.markdown("### Thống kê doanh thu của các sellers")
-    if "SELLER" in filtered_valid.columns:
+    if "SELLER" in filtered_all.columns:
+        df_seller = filtered_all.copy()
+
+        # Tạo khóa hóa đơn duy nhất theo SELLER, BUYER NAME, DATE, INV NO.
+        if {"INV NO.", "SELLER", "BUYER NAME", "DATE"}.issubset(df_seller.columns):
+            df_seller["Invoice_Key"] = (
+                df_seller["INV NO."].astype(str)
+                + "|"
+                + df_seller["SELLER"].astype(str)
+                + "|"
+                + df_seller["BUYER NAME"].astype(str)
+                + "|"
+                + df_seller["DATE"].astype(str)
+            )
+            invoice_agg = ("Invoice_Key", "nunique")
+        elif "INV NO." in df_seller.columns:
+            # Fallback: chỉ đảm bảo unique theo INV NO.
+            invoice_agg = ("INV NO.", "nunique")
+        else:
+            # Fallback cuối cùng: đếm số dòng
+            invoice_agg = ("SELLER", "size")
+
         seller_stats = (
-            filtered_valid.groupby("SELLER").agg(
-                Total_Value=("VALUE_EXL_VAT_numeric", "sum"),
-                Total_Volume=("VOLUME_numeric", "sum"),
-                Invoice_Count=("INV NO.", "nunique")
-                if "INV NO." in filtered_valid.columns
-                else ("Unit_Price", "count"),
+            df_seller.groupby("SELLER").agg(
+                Total_Value=("VALUE_EXL_VAT_numeric", "sum")
+                if "VALUE_EXL_VAT_numeric" in df_seller.columns
+                else ("SELLER", "size"),
+                Total_Volume=("VOLUME_numeric", "sum")
+                if "VOLUME_numeric" in df_seller.columns
+                else ("SELLER", "size"),
+                Invoice_Count=invoice_agg,
                 Buyer_Count=("BUYER NAME", "nunique")
-                if "BUYER NAME" in filtered_valid.columns
-                else ("Unit_Price", "count"),
+                if "BUYER NAME" in df_seller.columns
+                else ("SELLER", "size"),
             )
         ).reset_index()
 
