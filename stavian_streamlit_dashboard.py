@@ -189,8 +189,16 @@ def main():
     # Không chọn sẵn để tránh áp filter mặc định
     p1_values = st.sidebar.multiselect("P1", options=p1_options, default=[])
 
-    # P2 filter
-    p2_options = sorted(df["P2"].dropna().unique()) if "P2" in df.columns else []
+    # P2 filter phụ thuộc vào lựa chọn P1
+    if "P2" in df.columns:
+        if p1_values:
+            # Lọc tạm theo P1 đã chọn để lấy danh sách P2 tương ứng
+            df_for_p2 = df[df["P1"].isin(p1_values)]
+        else:
+            df_for_p2 = df
+        p2_options = sorted(df_for_p2["P2"].dropna().unique())
+    else:
+        p2_options = []
     p2_values = st.sidebar.multiselect("P2", options=p2_options, default=[])
 
     # BRAND filter
