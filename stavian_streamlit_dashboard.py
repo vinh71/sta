@@ -173,12 +173,12 @@ def main():
         "Dashboard tương tác cho phép lọc theo P1, P2, BRAND, Định lượng, Month và xem bảng giá thị trường, doanh thu theo seller."
     )
 
-    # Sidebar: chọn file dữ liệu (mặc định để trống -> đọc từ Google Sheets)
-    default_path = ""
+    # Sidebar: thông tin bộ dữ liệu (chỉ hiển thị text, không có input)
     st.sidebar.header("Thiết lập dữ liệu")
-    data_path = st.sidebar.text_input("Đường dẫn file Excel dữ liệu", value=default_path)
+    st.sidebar.write("Bộ dữ liệu: **Database_updated_2112.xlsx** (đọc từ OneDrive)")
 
-    df = load_data(data_path if data_path.strip() else None)
+    # Luôn đọc dữ liệu từ OneDrive (hoặc local khi chạy trên máy anh nếu truyền đường dẫn khác vào load_data)
+    df = load_data(None)
     if df.empty:
         st.stop()
 
@@ -218,8 +218,9 @@ def main():
             value=(dl_min, dl_max),
         )
 
-    only_kg = st.sidebar.checkbox("Chỉ lấy đơn vị KG", value=True)
-    remove_related_true = st.sidebar.checkbox("Loại bỏ RELATED = TRUE", value=True)
+    # Mặc định không tích filter nào; anh tự chọn khi cần
+    only_kg = st.sidebar.checkbox("Chỉ lấy đơn vị KG", value=False)
+    remove_related_true = st.sidebar.checkbox("Loại bỏ RELATED = TRUE", value=False)
 
     filtered_valid, filtered_all = filter_data(
         df,
