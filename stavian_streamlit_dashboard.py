@@ -9,7 +9,7 @@ from pathlib import Path
 # URL tải thẳng từ OneDrive/SharePoint (đã thêm ?download=1)
 ONEDRIVE_URL = (
     "https://stneuedu-my.sharepoint.com/:x:/g/personal/11230786_st_neu_edu_vn/"
-    "IQAQAcg4aM2VT72GrMwPOZHYATsP7H2tVAzgZVZ0almZXZk?download=1"
+    "IQAQAcg4aM2VT72GrMwPOZHYAct-Yjm-LgqcxjcFcRBPBN4?download=1"
 )
 ONEDRIVE_URL_ALT = ONEDRIVE_URL  # có thể thay bằng link backup nếu cần
 
