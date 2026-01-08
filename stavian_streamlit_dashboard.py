@@ -6,10 +6,11 @@ from io import BytesIO
 from pathlib import Path
 
 
-# URL tải thẳng từ OneDrive/SharePoint (đã thêm ?download=1)
+# URL tải thẳng từ OneDrive/SharePoint
+# Chuyển đổi link SharePoint sang link download: thay :x:/g/ thành :x:/r/ và thêm ?download=1
 ONEDRIVE_URL = (
-    "https://stneuedu-my.sharepoint.com/:x:/g/personal/11230786_st_neu_edu_vn/"
-    "IQAQAcg4aM2VT72GrMwPOZHYAct-Yjm-LgqcxjcFcRBPBN4?download=1"
+    "https://stneuedu-my.sharepoint.com/:x:/r/personal/11230786_st_neu_edu_vn/"
+    "IQAQAcg4aM2VT72GrMwPOZHYATsP7H2tVAzgZVZ0almZXZk?download=1"
 )
 ONEDRIVE_URL_ALT = ONEDRIVE_URL  # có thể thay bằng link backup nếu cần
 
@@ -29,13 +30,17 @@ def load_data(excel_path: str | None = None) -> pd.DataFrame:
                 return pd.DataFrame()
             df = pd.read_excel(path, engine="openpyxl")
         else:
+            # Headers để giả lập browser request, tránh lỗi 403
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
             try:
-                resp = requests.get(ONEDRIVE_URL)
+                resp = requests.get(ONEDRIVE_URL, headers=headers)
                 resp.raise_for_status()
                 df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
             except Exception:
                 # Thử URL thay thế (backup)
-                resp = requests.get(ONEDRIVE_URL_ALT)
+                resp = requests.get(ONEDRIVE_URL_ALT, headers=headers)
                 resp.raise_for_status()
                 df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
     except Exception as e:
