@@ -106,8 +106,8 @@ def get_filtered_data_for_options(
     if month_values and "Month" in df.columns:
         mask &= df["Month"].isin(month_values)
     
-    if city_values and "City" in df.columns:
-        mask &= df["City"].isin(city_values)
+    if city_values and "REGION" in df.columns:
+        mask &= df["REGION"].isin(city_values)
     
     # Chỉ lấy UNIT là KG
     if only_kg and "UNIT_normalized" in df.columns:
@@ -164,8 +164,8 @@ def filter_data(
     if month_values and "Month" in df.columns:
         mask &= df["Month"].isin(month_values)
 
-    if city_values and "City" in df.columns:
-        mask &= df["City"].isin(city_values)
+    if city_values and "REGION" in df.columns:
+        mask &= df["REGION"].isin(city_values)
 
     # Định lượng range
     if "Định_lượng_numeric" in df.columns and dinh_luong_range is not None:
@@ -645,7 +645,7 @@ def main():
 
     st.title("DASHBOARD PHÂN TÍCH GIÁ THỊ TRƯỜNG")
     st.caption(
-        "Dashboard tương tác cho phép lọc theo P1, P2, BRAND, City, Định lượng, Month và xem bảng giá thị trường, thống kê doanh thu theo seller và buyer."
+        "Dashboard tương tác cho phép lọc theo P1, P2, BRAND, Region, Định lượng, Month và xem bảng giá thị trường, thống kê doanh thu theo seller và buyer."
     )
     
     # CSS để căn phải các cột số, căn trái cột đầu tiên
@@ -765,29 +765,23 @@ def main():
         brand_options = []
     brand_values = st.sidebar.multiselect("BRAND", options=brand_options, default=[])
 
-    # Mặc định không tích filter nào; anh tự chọn khi cần
-    # Định nghĩa các checkbox này trước để có thể sử dụng trong các filter khác
-    only_kg = st.sidebar.checkbox("Chỉ lấy đơn vị KG", value=False)
-    remove_related_true = st.sidebar.checkbox("Loại RELATED ", value=False)
-    remove_related_false = st.sidebar.checkbox("Xem RELATED", value=False)
-
     # Khởi tạo month_values và city_values từ session state (nếu có) để tránh lỗi UnboundLocalError
     month_values = st.session_state.get("month_values", [])
     city_values = st.session_state.get("city_values", [])
 
-    # Lấy dữ liệu đã được filter bởi P1, P2, BRAND để tính options ban đầu
-    df_filtered_base = get_filtered_data_for_options(
-        df, p1_values, p2_values, brand_values, [], [], only_kg, remove_related_true, remove_related_false
-    )
+    # Khởi tạo các checkbox từ session state để sử dụng trong tính toán (sẽ hiển thị sau)
+    only_kg = st.session_state.get("only_kg", False)
+    remove_related_true = st.session_state.get("remove_related_true", False)
+    remove_related_false = st.session_state.get("remove_related_false", False)
 
-    # City filter phụ thuộc vào P1, P2, BRAND, Month
-    if "City" in df.columns:
-        # City phụ thuộc vào Month (nếu có)
+    # Region filter phụ thuộc vào P1, P2, BRAND, Month
+    if "REGION" in df.columns:
+        # Region phụ thuộc vào Month (nếu có)
         df_for_city = get_filtered_data_for_options(
             df, p1_values, p2_values, brand_values, month_values if month_values else [], [], 
             only_kg, remove_related_true, remove_related_false
         )
-        city_options = sorted(df_for_city["City"].dropna().unique())
+        city_options = sorted(df_for_city["REGION"].dropna().unique())
         
         # Loại bỏ các city_values không hợp lệ
         if city_values:
@@ -795,15 +789,15 @@ def main():
     else:
         city_options = []
     city_values = st.sidebar.multiselect(
-        "City", options=city_options, default=city_values if city_values else []
+        "Region", options=city_options, default=city_values if city_values else []
     )
     # Lưu vào session state
     st.session_state.city_values = city_values
 
-    # Month filter phụ thuộc vào P1, P2, BRAND, City
-    # Month phụ thuộc vào City để khi chọn City, Month options sẽ thu hẹp lại
+    # Month filter phụ thuộc vào P1, P2, BRAND, Region
+    # Month phụ thuộc vào Region để khi chọn Region, Month options sẽ thu hẹp lại
     if "Month" in df.columns:
-        # Month phụ thuộc vào City (nếu có)
+        # Month phụ thuộc vào Region (nếu có)
         df_for_month = get_filtered_data_for_options(
             df, p1_values, p2_values, brand_values, [], city_values if city_values else [], 
             only_kg, remove_related_true, remove_related_false
@@ -820,6 +814,15 @@ def main():
     )
     # Lưu vào session state
     st.session_state.month_values = month_values
+
+    # Mặc định không tích filter nào; anh tự chọn khi cần
+    # Hiển thị các checkbox sau Region và Tháng
+    only_kg = st.sidebar.checkbox("Chỉ lấy đơn vị KG", value=only_kg)
+    st.session_state.only_kg = only_kg
+    remove_related_true = st.sidebar.checkbox("Loại RELATED ", value=remove_related_true)
+    st.session_state.remove_related_true = remove_related_true
+    remove_related_false = st.sidebar.checkbox("Xem RELATED", value=remove_related_false)
+    st.session_state.remove_related_false = remove_related_false
 
     # Tùy chọn bật filter định lượng - phụ thuộc vào tất cả các filter khác
     dinh_luong_range = None
@@ -891,82 +894,8 @@ def main():
     # Divider line
     st.markdown('<hr style="border: none; height: 2px; background: linear-gradient(to right, #009793, transparent); margin: 25px 0;">', unsafe_allow_html=True)
 
-    # Bảng giá thị trường theo Seller x Month
-    st.markdown('<h3 style="color: #009793;">1. Bảng giá theo Seller và Tháng</h3>', unsafe_allow_html=True)
-    if {"SELLER", "Month", "Unit_Price"}.issubset(filtered_valid.columns):
-        price_stats = (
-            filtered_valid.groupby(["SELLER", "Month"])
-            .apply(calculate_price_stats)
-            .reset_index()
-        )
-
-        # Làm tròn để hiển thị
-        for col in ["Price_Highest", "Price_Lowest", "Price_Avg_Formula"]:
-            price_stats[col] = price_stats[col].round(0)
-
-        # Tạo filter UI ngay trên bảng
-        numeric_cols = ["Price_Highest", "Price_Lowest", "Price_Avg_Formula", "Transaction_Count"]
-        filters = create_column_filter_ui(price_stats, "Bảng giá theo Seller và Tháng", numeric_cols)
-        
-        # Áp dụng Filter nếu có
-        price_stats_filtered = price_stats.copy()
-        if filters:  # Chỉ áp dụng nếu có filter được thiết lập
-            price_stats_filtered = apply_column_filters(price_stats_filtered, filters)
-
-        # Sort trước khi format (sort theo số, không phải string)
-        price_stats_sorted = price_stats_filtered.sort_values(["Month", "SELLER"])
-        
-        # Format số với dấu phẩy ngăn cách hàng nghìn để hiển thị
-        price_stats_display = format_dataframe_numbers(
-            price_stats_sorted, 
-            ["Price_Highest", "Price_Lowest", "Price_Avg_Formula", "Transaction_Count"]
-        )
-
-        st.dataframe(
-            price_stats_display,
-            use_container_width=True,
-        )
-        
-        # CSS để căn phải các cột số - áp dụng ngay sau bảng với selector cụ thể
-        st.markdown("""
-        <style>
-        /* Căn phải cho cột Month (cột thứ 2) */
-        div[data-testid="stDataFrame"] table tbody tr td:nth-child(2),
-        div[data-testid="stDataFrame"] table thead tr th:nth-child(2) {
-            text-align: right !important;
-        }
-        /* Căn phải cho các cột số (từ cột thứ 3 trở đi) */
-        div[data-testid="stDataFrame"] table tbody tr td:nth-child(3),
-        div[data-testid="stDataFrame"] table thead tr th:nth-child(3),
-        div[data-testid="stDataFrame"] table tbody tr td:nth-child(4),
-        div[data-testid="stDataFrame"] table thead tr th:nth-child(4),
-        div[data-testid="stDataFrame"] table tbody tr td:nth-child(5),
-        div[data-testid="stDataFrame"] table thead tr th:nth-child(5),
-        div[data-testid="stDataFrame"] table tbody tr td:nth-child(6),
-        div[data-testid="stDataFrame"] table thead tr th:nth-child(6),
-        div[data-testid="stDataFrame"] table tbody tr td:nth-child(7),
-        div[data-testid="stDataFrame"] table thead tr th:nth-child(7) {
-            text-align: right !important;
-        }
-        /* Căn trái cho cột đầu tiên (SELLER) */
-        div[data-testid="stDataFrame"] table tbody tr td:first-child,
-        div[data-testid="stDataFrame"] table thead tr th:first-child {
-            text-align: left !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        # Hiển thị số dòng sau filter
-        if len(price_stats_filtered) < len(price_stats):
-            st.caption(f"📊 Đã lọc từ {len(price_stats):,} dòng xuống còn {len(price_stats_filtered):,} dòng")
-    else:
-        st.info("Thiếu một trong các cột: SELLER, Month, Unit_Price.")
-
-    # Divider line
-    st.markdown('<hr style="border: none; height: 2px; background: linear-gradient(to right, #009793, transparent); margin: 25px 0;">', unsafe_allow_html=True)
-
     # Giá thị trường (trung bình các sellers) theo tháng
-    st.markdown("### 2. Giá thị trường (trung bình các sellers) theo tháng")
+    st.markdown('<h3 style="color: #009793;">1. Giá thị trường (trung bình các sellers) theo tháng</h3>', unsafe_allow_html=True)
     if {"SELLER", "Month"}.issubset(filtered_valid.columns):
         market_rows = []
         for m in sorted(filtered_valid["Month"].dropna().unique()):
@@ -1041,6 +970,80 @@ def main():
                 st.caption(f"📊 Đã lọc từ {len(market_df):,} dòng xuống còn {len(market_df_filtered):,} dòng")
         else:
             st.info("Không có đủ dữ liệu để tính giá thị trường.")
+
+    # Divider line
+    st.markdown('<hr style="border: none; height: 2px; background: linear-gradient(to right, #009793, transparent); margin: 25px 0;">', unsafe_allow_html=True)
+
+    # Bảng giá thị trường theo Seller x Month
+    st.markdown('<h3 style="color: #009793;">2. Bảng giá theo Seller và Tháng</h3>', unsafe_allow_html=True)
+    if {"SELLER", "Month", "Unit_Price"}.issubset(filtered_valid.columns):
+        price_stats = (
+            filtered_valid.groupby(["SELLER", "Month"])
+            .apply(calculate_price_stats)
+            .reset_index()
+        )
+
+        # Làm tròn để hiển thị
+        for col in ["Price_Highest", "Price_Lowest", "Price_Avg_Formula"]:
+            price_stats[col] = price_stats[col].round(0)
+
+        # Tạo filter UI ngay trên bảng
+        numeric_cols = ["Price_Highest", "Price_Lowest", "Price_Avg_Formula", "Transaction_Count"]
+        filters = create_column_filter_ui(price_stats, "Bảng giá theo Seller và Tháng", numeric_cols)
+        
+        # Áp dụng Filter nếu có
+        price_stats_filtered = price_stats.copy()
+        if filters:  # Chỉ áp dụng nếu có filter được thiết lập
+            price_stats_filtered = apply_column_filters(price_stats_filtered, filters)
+
+        # Sort trước khi format (sort theo số, không phải string)
+        price_stats_sorted = price_stats_filtered.sort_values(["Month", "SELLER"])
+        
+        # Format số với dấu phẩy ngăn cách hàng nghìn để hiển thị
+        price_stats_display = format_dataframe_numbers(
+            price_stats_sorted, 
+            ["Price_Highest", "Price_Lowest", "Price_Avg_Formula", "Transaction_Count"]
+        )
+
+        st.dataframe(
+            price_stats_display,
+            use_container_width=True,
+        )
+        
+        # CSS để căn phải các cột số - áp dụng ngay sau bảng với selector cụ thể
+        st.markdown("""
+        <style>
+        /* Căn phải cho cột Month (cột thứ 2) */
+        div[data-testid="stDataFrame"] table tbody tr td:nth-child(2),
+        div[data-testid="stDataFrame"] table thead tr th:nth-child(2) {
+            text-align: right !important;
+        }
+        /* Căn phải cho các cột số (từ cột thứ 3 trở đi) */
+        div[data-testid="stDataFrame"] table tbody tr td:nth-child(3),
+        div[data-testid="stDataFrame"] table thead tr th:nth-child(3),
+        div[data-testid="stDataFrame"] table tbody tr td:nth-child(4),
+        div[data-testid="stDataFrame"] table thead tr th:nth-child(4),
+        div[data-testid="stDataFrame"] table tbody tr td:nth-child(5),
+        div[data-testid="stDataFrame"] table thead tr th:nth-child(5),
+        div[data-testid="stDataFrame"] table tbody tr td:nth-child(6),
+        div[data-testid="stDataFrame"] table thead tr th:nth-child(6),
+        div[data-testid="stDataFrame"] table tbody tr td:nth-child(7),
+        div[data-testid="stDataFrame"] table thead tr th:nth-child(7) {
+            text-align: right !important;
+        }
+        /* Căn trái cho cột đầu tiên (SELLER) */
+        div[data-testid="stDataFrame"] table tbody tr td:first-child,
+        div[data-testid="stDataFrame"] table thead tr th:first-child {
+            text-align: left !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # Hiển thị số dòng sau filter
+        if len(price_stats_filtered) < len(price_stats):
+            st.caption(f"📊 Đã lọc từ {len(price_stats):,} dòng xuống còn {len(price_stats_filtered):,} dòng")
+    else:
+        st.info("Thiếu một trong các cột: SELLER, Month, Unit_Price.")
 
     # Divider line
     st.markdown('<hr style="border: none; height: 2px; background: linear-gradient(to right, #009793, transparent); margin: 25px 0;">', unsafe_allow_html=True)
