@@ -658,6 +658,17 @@ def apply_column_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
 
 
 def calculate_price_stats(group: pd.DataFrame) -> pd.Series:
+    # Kiểm tra các cột cần thiết trước khi truy cập
+    if "Unit_Price" not in group.columns:
+        return pd.Series(
+            {
+                "Price_Highest": np.nan,
+                "Price_Lowest": np.nan,
+                "Price_Avg_Formula": np.nan,
+                "Transaction_Count": len(group),
+            }
+        )
+    
     prices = group["Unit_Price"].dropna()
     if len(prices) == 0:
         return pd.Series(
@@ -665,7 +676,7 @@ def calculate_price_stats(group: pd.DataFrame) -> pd.Series:
                 "Price_Highest": np.nan,
                 "Price_Lowest": np.nan,
                 "Price_Avg_Formula": np.nan,
-                "Transaction_Count": 0,
+                "Transaction_Count": len(group),
             }
         )
 
@@ -675,8 +686,9 @@ def calculate_price_stats(group: pd.DataFrame) -> pd.Series:
     if len(prices_cleaned) > 2 * n_remove:
         prices_cleaned = prices_cleaned.iloc[n_remove:-n_remove]
 
-    total_value = group["VALUE_EXL_VAT_numeric"].sum()
-    total_volume = group["VOLUME_numeric"].sum()
+    # Kiểm tra các cột numeric trước khi tính toán
+    total_value = group["VALUE_EXL_VAT_numeric"].sum() if "VALUE_EXL_VAT_numeric" in group.columns else 0
+    total_volume = group["VOLUME_numeric"].sum() if "VOLUME_numeric" in group.columns else 0
     avg_price_formula = total_value / total_volume if total_volume > 0 else np.nan
 
     return pd.Series(
