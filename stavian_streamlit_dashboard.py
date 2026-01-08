@@ -10,7 +10,7 @@ from pathlib import Path
 # Chuyển đổi link SharePoint sang link download: thay :x:/g/ thành :x:/r/ và thêm ?download=1
 ONEDRIVE_URL = (
     "https://stneuedu-my.sharepoint.com/:x:/r/personal/11230786_st_neu_edu_vn/"
-    "IQAQAcg4aM2VT72GrMwPOZHYATsP7H2tVAzgZVZ0almZXZk?download=1"
+    "IQAQAcg4aM2VT72GrMwPOZHYAToD1lpS-cKsOzmT3xoj91I?download=1"
 )
 ONEDRIVE_URL_ALT = ONEDRIVE_URL  # có thể thay bằng link backup nếu cần
 
