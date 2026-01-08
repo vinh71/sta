@@ -13,7 +13,7 @@ ONEDRIVE_URL = (
 )
 ONEDRIVE_URL_ALT = (
     "https://stneuedu-my.sharepoint.com/:x:/g/personal/11230786_st_neu_edu_vn/"
-    "IQAQAcg4aM2VT72GrMwPOZHYAToD1lpS-cKsOzmT3xoj91I?e=m37dWw"
+    "IQAQAcg4aM2VT72GrMwPOZHYAToD1lpS-cKsOzmT3xoj91I?download=1"
 )
 
 
@@ -32,15 +32,26 @@ def load_data(excel_path: str | None = None) -> pd.DataFrame:
                 return pd.DataFrame()
             df = pd.read_excel(path, engine="openpyxl")
         else:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
             try:
-                resp = requests.get(ONEDRIVE_URL)
+                resp = requests.get(ONEDRIVE_URL, headers=headers, allow_redirects=True)
                 resp.raise_for_status()
+                # Kiểm tra xem có phải file Excel không (bắt đầu bằng PK)
+                if resp.content[:2] != b'PK':
+                    raise ValueError("Response không phải là file Excel hợp lệ")
                 df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
-            except Exception:
-                # Thử URL thay thế (backup)
-                resp = requests.get(ONEDRIVE_URL_ALT)
-                resp.raise_for_status()
-                df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
+            except Exception as e1:
+                try:
+                    # Thử URL thay thế (backup)
+                    resp = requests.get(ONEDRIVE_URL_ALT, headers=headers, allow_redirects=True)
+                    resp.raise_for_status()
+                    if resp.content[:2] != b'PK':
+                        raise ValueError("Response không phải là file Excel hợp lệ")
+                    df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
+                except Exception as e2:
+                    raise Exception(f"Không thể tải file từ SharePoint. Lỗi URL 1: {e1}, Lỗi URL 2: {e2}")
     except Exception as e:
         st.error(f"Lỗi khi đọc dữ liệu: {e}")
         return pd.DataFrame()
