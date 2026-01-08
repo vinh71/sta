@@ -13,7 +13,7 @@ ONEDRIVE_URL = (
 )
 ONEDRIVE_URL_ALT = (
     "https://stneuedu-my.sharepoint.com/:x:/g/personal/11230786_st_neu_edu_vn/"
-    "IQAQAcg4aM2VT72GrMwPOZHYAToD1lpS-cKsOzmT3xoj91I?download=1"
+    "IQAQAcg4aM2VT72GrMwPOZHYAToD1lpS-cKsOzmT3xoj91I?e=mtTymD&download=1"
 )
 
 
@@ -123,10 +123,9 @@ def get_filtered_data_for_options(
     if city_values and "REGION" in df.columns:
         mask &= df["REGION"].isin(city_values)
     
-    # Chỉ lấy UNIT là KG
+    # Chỉ lấy UNIT là KG (chính xác)
     if only_kg and "UNIT_normalized" in df.columns:
-        kg_variants = ["KG", "KILOGRAM", "KILO", "KGS"]
-        mask &= df["UNIT_normalized"].isin(kg_variants)
+        mask &= df["UNIT_normalized"] == "KG"
     
     # Loại bỏ RELATED = TRUE
     if remove_related_true and "RELATED" in df.columns:
@@ -186,10 +185,9 @@ def filter_data(
         lo, hi = dinh_luong_range
         mask &= df["Định_lượng_numeric"].between(lo, hi)
 
-    # Chỉ lấy UNIT là KG
+    # Chỉ lấy UNIT là KG (chính xác)
     if only_kg and "UNIT_normalized" in df.columns:
-        kg_variants = ["KG", "KILOGRAM", "KILO", "KGS"]
-        mask &= df["UNIT_normalized"].isin(kg_variants)
+        mask &= df["UNIT_normalized"] == "KG"
 
     # Loại bỏ RELATED = TRUE
     if remove_related_true and "RELATED" in df.columns:
@@ -657,84 +655,254 @@ def main():
         layout="wide",
     )
 
-    st.title("DASHBOARD PHÂN TÍCH GIÁ THỊ TRƯỜNG")
-    st.caption(
-        "Dashboard tương tác cho phép lọc theo P1, P2, BRAND, Region, Định lượng, Month và xem bảng giá thị trường, thống kê doanh thu theo seller và buyer."
-    )
+    # Title với styling đẹp
+    st.markdown("""
+    <div style="text-align: center; padding: 2rem 0;">
+        <h1 style="margin-bottom: 0.5rem;"> DASHBOARD PHÂN TÍCH GIÁ THỊ TRƯỜNG</h1>
+        <p style="color: #666; font-size: 1.1rem; font-style: italic; margin-top: 0.5rem;">
+            Dashboard tương tác cho phép lọc theo P1, P2, BRAND, Region, Định lượng, Month và xem bảng giá thị trường, 
+            thống kê doanh thu theo seller và buyer
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # CSS để căn phải các cột số, căn trái cột đầu tiên
+    # CSS chuyên nghiệp và đẹp mắt
     st.markdown("""
     <style>
-    /* Căn phải tất cả các cột trừ cột đầu tiên - dùng nhiều selector */
-    div[data-testid="stDataFrame"] table tbody tr td:not(:first-child),
-    div[data-testid="stDataFrame"] table thead tr th:not(:first-child),
-    div[data-testid="stDataFrame"] table tbody td:not(:first-child),
-    div[data-testid="stDataFrame"] table thead th:not(:first-child),
-    div[data-testid="stDataFrame"] table td:not(:first-child),
-    div[data-testid="stDataFrame"] table th:not(:first-child) {
-        text-align: right !important;
+    /* ========== MAIN CONTAINER STYLING ========== */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1400px;
     }
-    /* Căn trái cho cột đầu tiên (SELLER) */
-    div[data-testid="stDataFrame"] table tbody tr td:first-child,
-    div[data-testid="stDataFrame"] table thead tr th:first-child,
-    div[data-testid="stDataFrame"] table td:first-child,
-    div[data-testid="stDataFrame"] table th:first-child {
-        text-align: left !important;
+    
+    /* ========== TITLE STYLING ========== */
+    h1 {
+        background: linear-gradient(135deg, #009793 0%, #00b8b3 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 2.5rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 0.5rem !important;
+        padding-bottom: 1rem !important;
+        border-bottom: 3px solid #009793 !important;
+        text-align: center;
     }
-    /* Đổi màu tiêu đề "Tổng quan dữ liệu sau khi lọc" và "Bảng giá theo Seller và Tháng" */
-    div[data-testid="stMarkdownContainer"] h3,
-    h3[data-testid="stMarkdownContainer"] {
-        color: #009793 !important;
+    
+    /* ========== CAPTION STYLING ========== */
+    .stCaption {
+        text-align: center;
+        color: #666 !important;
+        font-size: 1rem;
+        margin-bottom: 2rem;
+        font-style: italic;
     }
-    /* Đổi màu cho subheader */
-    div[data-testid="stMarkdownContainer"] h2 {
-        color: #009793 !important;
-    }
-    /* Hoạt tiết màu xanh - Border accent cho tiêu đề */
+    
+    /* ========== SECTION HEADERS ========== */
     div[data-testid="stMarkdownContainer"] h2,
     div[data-testid="stMarkdownContainer"] h3 {
-        border-left: 4px solid #009793 !important;
-        padding-left: 12px !important;
-        margin-top: 20px !important;
-        margin-bottom: 15px !important;
+        color: #009793 !important;
+        font-weight: 600 !important;
+        border-left: 5px solid #009793 !important;
+        padding-left: 15px !important;
+        margin-top: 2rem !important;
+        margin-bottom: 1rem !important;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        background: linear-gradient(to right, rgba(0, 151, 147, 0.1), transparent);
+        border-radius: 4px;
     }
-    /* Hoạt tiết - Border top cho title */
-    h1 {
-        border-top: 3px solid #009793 !important;
-        padding-top: 15px !important;
-        margin-bottom: 10px !important;
+    
+    /* ========== METRICS CARDS ========== */
+    div[data-testid="stMetricContainer"] {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
     }
-    /* Hoạt tiết - Background subtle cho metrics */
+    
+    div[data-testid="stMetricContainer"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 151, 147, 0.2);
+    }
+    
     div[data-testid="stMetricValue"] {
         color: #009793 !important;
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
     }
-    /* Hoạt tiết - Divider line */
-    .divider-line {
-        height: 2px;
-        background: linear-gradient(to right, #009793, transparent);
-        margin: 20px 0;
-        border: none;
+    
+    div[data-testid="stMetricLabel"] {
+        color: #666 !important;
+        font-size: 0.9rem !important;
+        font-weight: 500 !important;
     }
-    /* Hoạt tiết - Border accent cho các section */
+    
+    /* ========== TABLE STYLING ========== */
     div[data-testid="stDataFrame"] {
-        border-top: 2px solid #009793;
-        padding-top: 10px;
-        margin-top: 10px;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-top: 1rem;
     }
-    /* Hoạt tiết - Styling cho metrics */
-    div[data-testid="stMetricContainer"] {
-        border-left: 3px solid #009793;
-        padding-left: 10px;
-        margin: 5px 0;
+    
+    div[data-testid="stDataFrame"] table {
+        border-collapse: separate;
+        border-spacing: 0;
     }
-    /* Hoạt tiết - Hover effect cho buttons */
-    div[data-testid="stDownloadButton"] button {
-        border: 2px solid #009793 !important;
+    
+    /* Style cho tất cả table headers - làm đậm */
+    div[data-testid="stDataFrame"] table thead tr th,
+    div[data-testid="stDataFrame"] table thead th,
+    div[data-testid="stDataFrame"] thead tr th,
+    div[data-testid="stDataFrame"] thead th,
+    table thead tr th,
+    table thead th,
+    thead tr th,
+    thead th {
+        background: linear-gradient(135deg, #009793 0%, #00b8b3 100%) !important;
+        color: white !important;
+        font-weight: 900 !important;
+        font-size: 1.05rem !important;
+        padding: 12px !important;
+        border: none !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+    
+    /* Đảm bảo font-weight được áp dụng */
+    div[data-testid="stDataFrame"] table thead tr th *,
+    div[data-testid="stDataFrame"] table thead th * {
+        font-weight: 900 !important;
+    }
+    
+    div[data-testid="stDataFrame"] table tbody tr {
+        transition: background-color 0.2s;
+    }
+    
+    div[data-testid="stDataFrame"] table tbody tr:hover {
+        background-color: rgba(0, 151, 147, 0.05) !important;
+    }
+    
+    div[data-testid="stDataFrame"] table tbody tr td {
+        padding: 10px 12px !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+    }
+    
+    /* Căn phải các cột số */
+    div[data-testid="stDataFrame"] table tbody tr td:not(:first-child),
+    div[data-testid="stDataFrame"] table thead tr th:not(:first-child) {
+        text-align: right !important;
+    }
+    
+    /* Căn trái cột đầu tiên */
+    div[data-testid="stDataFrame"] table tbody tr td:first-child,
+    div[data-testid="stDataFrame"] table thead tr th:first-child {
+        text-align: left !important;
+        font-weight: 500;
+    }
+    
+    /* ========== SIDEBAR STYLING ========== */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+    }
+    
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2 {
+        color: #009793 !important;
+        border-left: 4px solid #009793 !important;
+        padding-left: 10px !important;
+        margin-top: 1rem !important;
+        font-size: 1.2rem !important;
+    }
+    
+    /* ========== FILTER EXPANDER ========== */
+    .streamlit-expanderHeader {
+        background: linear-gradient(135deg, rgba(0, 151, 147, 0.1) 0%, rgba(0, 184, 179, 0.1) 100%);
+        border-radius: 6px;
+        padding: 0.5rem;
+        font-weight: 600;
         color: #009793 !important;
     }
-    div[data-testid="stDownloadButton"] button:hover {
-        background-color: #009793 !important;
+    
+    /* ========== BUTTONS ========== */
+    div[data-testid="stDownloadButton"] button {
+        background: linear-gradient(135deg, #009793 0%, #00b8b3 100%) !important;
         color: white !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 0.5rem 1.5rem !important;
+        font-weight: 600 !important;
+        transition: all 0.3s !important;
+        box-shadow: 0 2px 4px rgba(0, 151, 147, 0.3) !important;
+    }
+    
+    div[data-testid="stDownloadButton"] button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 151, 147, 0.4) !important;
+        background: linear-gradient(135deg, #00b8b3 0%, #009793 100%) !important;
+    }
+    
+    /* ========== MULTISELECT & SELECTBOX ========== */
+    .stSelectbox label,
+    .stMultiSelect label {
+        font-weight: 600 !important;
+        color: #333 !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* ========== CHECKBOX ========== */
+    .stCheckbox label {
+        font-weight: 500 !important;
+        color: #555 !important;
+    }
+    
+    /* ========== DIVIDER ========== */
+    hr {
+        border: none;
+        height: 2px;
+        background: linear-gradient(to right, #009793, transparent);
+        margin: 2rem 0;
+    }
+    
+    /* ========== SUCCESS/INFO MESSAGES ========== */
+    .stSuccess {
+        background: linear-gradient(135deg, rgba(0, 151, 147, 0.1) 0%, rgba(0, 184, 179, 0.1) 100%);
+        border-left: 4px solid #009793;
+        border-radius: 4px;
+    }
+    
+    /* ========== CAPTION STYLING ========== */
+    .stCaption {
+        color: #009793 !important;
+        font-weight: 500;
+    }
+    
+    /* ========== SCROLLBAR STYLING ========== */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: #009793;
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: #00b8b3;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -961,9 +1129,14 @@ def main():
                 use_container_width=True,
             )
             
-            # CSS để căn phải các cột số
+            # CSS để căn phải các cột số và làm đậm header
             st.markdown("""
             <style>
+            /* Làm đậm tên cột */
+            div[data-testid="stDataFrame"] table thead tr th {
+                font-weight: 900 !important;
+                font-size: 1.1rem !important;
+            }
             /* Căn phải tất cả các cột trừ cột đầu tiên */
             div[data-testid="stDataFrame"] table tbody tr td:not(:first-child),
             div[data-testid="stDataFrame"] table thead tr th:not(:first-child),
@@ -1002,8 +1175,9 @@ def main():
             price_stats[col] = price_stats[col].round(0)
 
         # Tạo filter UI ngay trên bảng
-        numeric_cols = ["Price_Highest", "Price_Lowest", "Price_Avg_Formula", "Transaction_Count"]
-        filters = create_column_filter_ui(price_stats, "Bảng giá theo Seller và Tháng", numeric_cols)
+        numeric_cols = ["Price_Highest", "Price_Lowest", "Price_Avg_Formula"]
+        text_cols = ["SELLER"]  # Thêm filter theo tên SELLER
+        filters = create_column_filter_ui(price_stats, "Bảng giá theo Seller và Tháng", numeric_cols, text_cols)
         
         # Áp dụng Filter nếu có
         price_stats_filtered = price_stats.copy()
@@ -1013,10 +1187,10 @@ def main():
         # Sort trước khi format (sort theo số, không phải string)
         price_stats_sorted = price_stats_filtered.sort_values(["Month", "SELLER"])
         
-        # Format số với dấu phẩy ngăn cách hàng nghìn để hiển thị
+        # Format số với dấu phẩy ngăn cách hàng nghìn để hiển thị (không format Transaction_Count)
         price_stats_display = format_dataframe_numbers(
             price_stats_sorted, 
-            ["Price_Highest", "Price_Lowest", "Price_Avg_Formula", "Transaction_Count"]
+            ["Price_Highest", "Price_Lowest", "Price_Avg_Formula"]
         )
 
         st.dataframe(
@@ -1024,9 +1198,14 @@ def main():
             use_container_width=True,
         )
         
-        # CSS để căn phải các cột số - áp dụng ngay sau bảng với selector cụ thể
+        # CSS để căn phải các cột số và làm đậm header - áp dụng ngay sau bảng
         st.markdown("""
         <style>
+        /* Làm đậm tên cột */
+        div[data-testid="stDataFrame"] table thead tr th {
+            font-weight: 900 !important;
+            font-size: 1.1rem !important;
+        }
         /* Căn phải cho cột Month (cột thứ 2) */
         div[data-testid="stDataFrame"] table tbody tr td:nth-child(2),
         div[data-testid="stDataFrame"] table thead tr th:nth-child(2) {
@@ -1129,9 +1308,14 @@ def main():
             use_container_width=True,
         )
         
-        # CSS để căn phải các cột số
+        # CSS để căn phải các cột số và làm đậm header
         st.markdown("""
         <style>
+        /* Làm đậm tên cột */
+        div[data-testid="stDataFrame"] table thead tr th {
+            font-weight: 900 !important;
+            font-size: 1.1rem !important;
+        }
         /* Căn phải tất cả các cột trừ cột đầu tiên */
         div[data-testid="stDataFrame"] table tbody tr td:not(:first-child),
         div[data-testid="stDataFrame"] table thead tr th:not(:first-child),
@@ -1275,9 +1459,14 @@ def main():
             use_container_width=True,
         )
         
-        # CSS để căn phải các cột số, căn trái SELLER và BUYER NAME
+        # CSS để căn phải các cột số, căn trái SELLER và BUYER NAME, làm đậm header
         st.markdown("""
         <style>
+        /* Làm đậm tên cột */
+        div[data-testid="stDataFrame"] table thead tr th {
+            font-weight: 900 !important;
+            font-size: 1.1rem !important;
+        }
         /* Căn phải các cột số (từ cột thứ 3 trở đi) */
         div[data-testid="stDataFrame"] table tbody tr td:nth-child(n+3),
         div[data-testid="stDataFrame"] table thead tr th:nth-child(n+3) {
