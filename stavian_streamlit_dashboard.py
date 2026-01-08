@@ -6,22 +6,15 @@ from io import BytesIO
 from pathlib import Path
 
 
-# URL tải thẳng từ OneDrive/SharePoint
-# File ID từ link SharePoint
-FILE_ID = "IQAQAcg4aM2VT72GrMwPOZHYAToD1lpS-cKsOzmT3xoj91I"
-BASE_URL = "https://stneuedu-my.sharepoint.com/personal/11230786_st_neu_edu_vn"
-
-# Thử nhiều format URL khác nhau để tải file
-ONEDRIVE_URLS = [
-    # Format 1: :x:/r/ với ?download=1
-    f"https://stneuedu-my.sharepoint.com/:x:/r/personal/11230786_st_neu_edu_vn/{FILE_ID}?download=1",
-    # Format 2: :x:/e/ với ?download=1  
-    f"https://stneuedu-my.sharepoint.com/:x:/e/personal/11230786_st_neu_edu_vn/{FILE_ID}?download=1",
-    # Format 3: :x:/g/ với ?download=1
-    f"https://stneuedu-my.sharepoint.com/:x:/g/personal/11230786_st_neu_edu_vn/{FILE_ID}?download=1",
-    # Format 4: Link gốc với ?download=1
-    f"https://stneuedu-my.sharepoint.com/:x:/g/personal/11230786_st_neu_edu_vn/{FILE_ID}?e=qa2xF1&download=1",
-]
+# URL tải thẳng từ OneDrive/SharePoint (đã thêm ?download=1)
+ONEDRIVE_URL = (
+    "https://stneuedu-my.sharepoint.com/:x:/r/personal/11230786_st_neu_edu_vn/"
+    "IQAQAcg4aM2VT72GrMwPOZHYAToD1lpS-cKsOzmT3xoj91I?download=1"
+)
+ONEDRIVE_URL_ALT = (
+    "https://stneuedu-my.sharepoint.com/:x:/g/personal/11230786_st_neu_edu_vn/"
+    "IQAQAcg4aM2VT72GrMwPOZHYAToD1lpS-cKsOzmT3xoj91I?e=m37dWw"
+)
 
 
 @st.cache_data(show_spinner=True)
@@ -39,57 +32,15 @@ def load_data(excel_path: str | None = None) -> pd.DataFrame:
                 return pd.DataFrame()
             df = pd.read_excel(path, engine="openpyxl")
         else:
-            # Headers để giả lập browser request, tránh lỗi 403
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, */*'
-            }
-            
-            last_error = None
-            # Thử từng format URL cho đến khi tìm được format hoạt động
-            for url_idx, url in enumerate(ONEDRIVE_URLS):
-                try:
-                    # Cho phép redirect và kiểm tra response
-                    resp = requests.get(url, headers=headers, allow_redirects=True, timeout=30)
-                    resp.raise_for_status()
-                    
-                    # Kiểm tra content-type để đảm bảo là file Excel
-                    content_type = resp.headers.get('Content-Type', '').lower()
-                    
-                    # Kiểm tra nếu response là HTML (thường là trang đăng nhập hoặc lỗi)
-                    if 'html' in content_type:
-                        # Kiểm tra nội dung để xác nhận là HTML
-                        content_preview = resp.content[:500].decode('utf-8', errors='ignore').lower()
-                        if '<html' in content_preview or '<!doctype' in content_preview:
-                            last_error = f"URL {url_idx + 1} trả về HTML thay vì file Excel"
-                            continue  # Thử URL tiếp theo
-                    
-                    # Thử đọc file Excel
-                    try:
-                        df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
-                        if not df.empty:
-                            st.success(f"Đã tải dữ liệu thành công từ URL format {url_idx + 1}")
-                            return df
-                    except Exception as excel_error:
-                        last_error = f"URL {url_idx + 1}: Không thể đọc file Excel - {str(excel_error)}"
-                        continue  # Thử URL tiếp theo
-                        
-                except requests.exceptions.RequestException as req_error:
-                    last_error = f"URL {url_idx + 1}: Lỗi kết nối - {str(req_error)}"
-                    continue  # Thử URL tiếp theo
-                except Exception as e:
-                    last_error = f"URL {url_idx + 1}: {str(e)}"
-                    continue  # Thử URL tiếp theo
-            
-            # Nếu tất cả URL đều thất bại
-            st.error(f"Không thể tải dữ liệu từ SharePoint. Đã thử {len(ONEDRIVE_URLS)} format URL khác nhau.")
-            st.info("💡 Gợi ý: Vui lòng kiểm tra:\n"
-                   "- Link SharePoint có quyền truy cập công khai không\n"
-                   "- Thử lấy link download trực tiếp từ SharePoint (Right-click file → Copy link → Chọn 'Anyone with the link')\n"
-                   "- Hoặc upload file lên nơi khác có link download công khai")
-            if last_error:
-                st.warning(f"Lỗi cuối cùng: {last_error}")
-            return pd.DataFrame()
+            try:
+                resp = requests.get(ONEDRIVE_URL)
+                resp.raise_for_status()
+                df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
+            except Exception:
+                # Thử URL thay thế (backup)
+                resp = requests.get(ONEDRIVE_URL_ALT)
+                resp.raise_for_status()
+                df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
     except Exception as e:
         st.error(f"Lỗi khi đọc dữ liệu: {e}")
         return pd.DataFrame()
@@ -658,17 +609,6 @@ def apply_column_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
 
 
 def calculate_price_stats(group: pd.DataFrame) -> pd.Series:
-    # Kiểm tra các cột cần thiết trước khi truy cập
-    if "Unit_Price" not in group.columns:
-        return pd.Series(
-            {
-                "Price_Highest": np.nan,
-                "Price_Lowest": np.nan,
-                "Price_Avg_Formula": np.nan,
-                "Transaction_Count": len(group),
-            }
-        )
-    
     prices = group["Unit_Price"].dropna()
     if len(prices) == 0:
         return pd.Series(
@@ -676,7 +616,7 @@ def calculate_price_stats(group: pd.DataFrame) -> pd.Series:
                 "Price_Highest": np.nan,
                 "Price_Lowest": np.nan,
                 "Price_Avg_Formula": np.nan,
-                "Transaction_Count": len(group),
+                "Transaction_Count": 0,
             }
         )
 
@@ -686,9 +626,8 @@ def calculate_price_stats(group: pd.DataFrame) -> pd.Series:
     if len(prices_cleaned) > 2 * n_remove:
         prices_cleaned = prices_cleaned.iloc[n_remove:-n_remove]
 
-    # Kiểm tra các cột numeric trước khi tính toán
-    total_value = group["VALUE_EXL_VAT_numeric"].sum() if "VALUE_EXL_VAT_numeric" in group.columns else 0
-    total_volume = group["VOLUME_numeric"].sum() if "VOLUME_numeric" in group.columns else 0
+    total_value = group["VALUE_EXL_VAT_numeric"].sum()
+    total_volume = group["VOLUME_numeric"].sum()
     avg_price_formula = total_value / total_volume if total_volume > 0 else np.nan
 
     return pd.Series(
