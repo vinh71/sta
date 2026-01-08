@@ -32,17 +32,36 @@ def load_data(excel_path: str | None = None) -> pd.DataFrame:
         else:
             # Headers để giả lập browser request, tránh lỗi 403
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, */*'
             }
             try:
-                resp = requests.get(ONEDRIVE_URL, headers=headers)
+                # Cho phép redirect và kiểm tra response
+                resp = requests.get(ONEDRIVE_URL, headers=headers, allow_redirects=True, timeout=30)
                 resp.raise_for_status()
+                
+                # Kiểm tra content-type để đảm bảo là file Excel
+                content_type = resp.headers.get('Content-Type', '').lower()
+                if 'html' in content_type:
+                    st.warning("Link SharePoint trả về HTML thay vì file Excel. Vui lòng kiểm tra lại link hoặc quyền truy cập.")
+                    return pd.DataFrame()
+                
                 df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
-            except Exception:
-                # Thử URL thay thế (backup)
-                resp = requests.get(ONEDRIVE_URL_ALT, headers=headers)
-                resp.raise_for_status()
-                df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
+            except Exception as e1:
+                try:
+                    # Thử URL thay thế (backup)
+                    resp = requests.get(ONEDRIVE_URL_ALT, headers=headers, allow_redirects=True, timeout=30)
+                    resp.raise_for_status()
+                    
+                    content_type = resp.headers.get('Content-Type', '').lower()
+                    if 'html' in content_type:
+                        st.warning("Link SharePoint trả về HTML thay vì file Excel. Vui lòng kiểm tra lại link hoặc quyền truy cập.")
+                        return pd.DataFrame()
+                    
+                    df = pd.read_excel(BytesIO(resp.content), engine="openpyxl")
+                except Exception as e2:
+                    # Nếu cả hai đều lỗi, ném lỗi đầu tiên
+                    raise e1
     except Exception as e:
         st.error(f"Lỗi khi đọc dữ liệu: {e}")
         return pd.DataFrame()
