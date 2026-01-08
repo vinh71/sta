@@ -74,6 +74,67 @@ def load_data(excel_path: str | None = None) -> pd.DataFrame:
     return df
 
 
+def get_filtered_data_for_options(
+    df: pd.DataFrame,
+    p1_values,
+    p2_values,
+    brand_values,
+    month_values,
+    city_values,
+    only_kg: bool,
+    remove_related_true: bool,
+    remove_related_false: bool,
+) -> pd.DataFrame:
+    """
+    Lấy dữ liệu đã được filter bởi các filter đã chọn (trừ định lượng).
+    Dùng để tính min/max cho các filter khác phụ thuộc vào nhau.
+    """
+    if df.empty:
+        return df
+    
+    mask = pd.Series(True, index=df.index)
+    
+    if p1_values and "P1" in df.columns:
+        mask &= df["P1"].isin(p1_values)
+    
+    if p2_values and "P2" in df.columns:
+        mask &= df["P2"].isin(p2_values)
+    
+    if brand_values and "BRAND" in df.columns:
+        mask &= df["BRAND"].isin(brand_values)
+    
+    if month_values and "Month" in df.columns:
+        mask &= df["Month"].isin(month_values)
+    
+    if city_values and "City" in df.columns:
+        mask &= df["City"].isin(city_values)
+    
+    # Chỉ lấy UNIT là KG
+    if only_kg and "UNIT_normalized" in df.columns:
+        kg_variants = ["KG", "KILOGRAM", "KILO", "KGS"]
+        mask &= df["UNIT_normalized"].isin(kg_variants)
+    
+    # Loại bỏ RELATED = TRUE
+    if remove_related_true and "RELATED" in df.columns:
+        mask &= ~(
+            (df["RELATED"] == True)
+            | (df["RELATED"] == "TRUE")
+            | (df["RELATED"] == 1)
+            | (df["RELATED"] == 1.0)
+        )
+    
+    # Loại bỏ RELATED = FALSE
+    if remove_related_false and "RELATED" in df.columns:
+        mask &= ~(
+            (df["RELATED"] == False)
+            | (df["RELATED"] == "FALSE")
+            | (df["RELATED"] == 0)
+            | (df["RELATED"] == 0.0)
+        )
+    
+    return df[mask].copy()
+
+
 def filter_data(
     df: pd.DataFrame,
     p1_values,
@@ -321,19 +382,38 @@ def create_unit_price_filter_ui(df: pd.DataFrame, table_name: str) -> dict:
     current_min_input = st.session_state[min_input_key]
     current_max_input = st.session_state[max_input_key]
     
+    # Kiểm tra và reset giá trị nếu nằm ngoài phạm vi hợp lệ
+    if current_min_input < unit_price_min or current_min_input > unit_price_max:
+        current_min_input = unit_price_min
+        st.session_state[min_input_key] = current_min_input
+    if current_max_input < unit_price_min or current_max_input > unit_price_max:
+        current_max_input = unit_price_max
+        st.session_state[max_input_key] = current_max_input
+    if (current_slider_value[0] < unit_price_min or current_slider_value[0] > unit_price_max or
+        current_slider_value[1] < unit_price_min or current_slider_value[1] > unit_price_max):
+        current_slider_value = (unit_price_min, unit_price_max)
+        st.session_state[slider_key] = current_slider_value
+    
     # Xác định giá trị để hiển thị cho slider: ưu tiên input nếu đã thay đổi
     slider_init_value = (current_min_input, current_max_input)
     if min_input_key in st.session_state and max_input_key in st.session_state:
         input_min = st.session_state[min_input_key]
         input_max = st.session_state[max_input_key]
-        # Nếu input khác với slider hiện tại, sử dụng giá trị input cho slider
-        if input_min != current_slider_value[0] or input_max != current_slider_value[1]:
-            # Đảm bảo min <= max
-            if input_min > input_max:
-                input_min = input_max
-            if input_max < input_min:
-                input_max = input_min
-            slider_init_value = (int(input_min), int(input_max))
+        # Đảm bảo giá trị nằm trong phạm vi hợp lệ
+        input_min = max(unit_price_min, min(input_min, unit_price_max))
+        input_max = max(unit_price_min, min(input_max, unit_price_max))
+        # Đảm bảo min <= max
+        if input_min > input_max:
+            input_min = input_max
+        if input_max < input_min:
+            input_max = input_min
+        slider_init_value = (int(input_min), int(input_max))
+    
+    # Đảm bảo slider_init_value nằm trong phạm vi
+    slider_init_value = (
+        max(unit_price_min, min(slider_init_value[0], unit_price_max)),
+        max(unit_price_min, min(slider_init_value[1], unit_price_max))
+    )
     
     # Tạo 2 cột: một cho slider, một cho input
     col1, col2 = st.columns([2, 1])
@@ -350,12 +430,13 @@ def create_unit_price_filter_ui(df: pd.DataFrame, table_name: str) -> dict:
         )
     
     with col2:
-        # Input cho giá trị min - sử dụng giá trị từ slider
+        # Input cho giá trị min - sử dụng giá trị từ slider (đã được đảm bảo hợp lệ)
+        min_input_value = max(unit_price_min, min(int(slider_value[0]), unit_price_max))
         min_input = st.number_input(
             "Từ:",
             min_value=unit_price_min,
             max_value=unit_price_max,
-            value=int(slider_value[0]),
+            value=min_input_value,
             key=min_input_key,
             help="Giá trị giới hạn dưới"
         )
@@ -684,35 +765,98 @@ def main():
         brand_options = []
     brand_values = st.sidebar.multiselect("BRAND", options=brand_options, default=[])
 
-    # Month filter
-    month_options = sorted(df["Month"].dropna().unique()) if "Month" in df.columns else []
-    month_values = st.sidebar.multiselect(
-        "Tháng", options=month_options, default=[]
-    )
-
-    # City filter
-    city_options = sorted(df["City"].dropna().unique()) if "City" in df.columns else []
-    city_values = st.sidebar.multiselect(
-        "City", options=city_options, default=[]
-    )
-
-    # Tùy chọn bật filter định lượng
-    dinh_luong_range = None
-    enable_dl_filter = st.sidebar.checkbox("Bật filter Định lượng (gsm)", value=False)
-    if enable_dl_filter and df["Định_lượng_numeric"].notna().any():
-        dl_min = int(df["Định_lượng_numeric"].min())
-        dl_max = int(df["Định_lượng_numeric"].max())
-        dinh_luong_range = st.sidebar.slider(
-            "Định lượng (gsm)",
-            min_value=dl_min,
-            max_value=dl_max,
-            value=(dl_min, dl_max),
-        )
-
     # Mặc định không tích filter nào; anh tự chọn khi cần
+    # Định nghĩa các checkbox này trước để có thể sử dụng trong các filter khác
     only_kg = st.sidebar.checkbox("Chỉ lấy đơn vị KG", value=False)
     remove_related_true = st.sidebar.checkbox("Loại RELATED ", value=False)
     remove_related_false = st.sidebar.checkbox("Xem RELATED", value=False)
+
+    # Khởi tạo month_values và city_values từ session state (nếu có) để tránh lỗi UnboundLocalError
+    month_values = st.session_state.get("month_values", [])
+    city_values = st.session_state.get("city_values", [])
+
+    # Lấy dữ liệu đã được filter bởi P1, P2, BRAND để tính options ban đầu
+    df_filtered_base = get_filtered_data_for_options(
+        df, p1_values, p2_values, brand_values, [], [], only_kg, remove_related_true, remove_related_false
+    )
+
+    # City filter phụ thuộc vào P1, P2, BRAND, Month
+    if "City" in df.columns:
+        # City phụ thuộc vào Month (nếu có)
+        df_for_city = get_filtered_data_for_options(
+            df, p1_values, p2_values, brand_values, month_values if month_values else [], [], 
+            only_kg, remove_related_true, remove_related_false
+        )
+        city_options = sorted(df_for_city["City"].dropna().unique())
+        
+        # Loại bỏ các city_values không hợp lệ
+        if city_values:
+            city_values = [c for c in city_values if c in city_options]
+    else:
+        city_options = []
+    city_values = st.sidebar.multiselect(
+        "City", options=city_options, default=city_values if city_values else []
+    )
+    # Lưu vào session state
+    st.session_state.city_values = city_values
+
+    # Month filter phụ thuộc vào P1, P2, BRAND, City
+    # Month phụ thuộc vào City để khi chọn City, Month options sẽ thu hẹp lại
+    if "Month" in df.columns:
+        # Month phụ thuộc vào City (nếu có)
+        df_for_month = get_filtered_data_for_options(
+            df, p1_values, p2_values, brand_values, [], city_values if city_values else [], 
+            only_kg, remove_related_true, remove_related_false
+        )
+        month_options = sorted(df_for_month["Month"].dropna().unique())
+        
+        # Loại bỏ các month_values không hợp lệ
+        if month_values:
+            month_values = [m for m in month_values if m in month_options]
+    else:
+        month_options = []
+    month_values = st.sidebar.multiselect(
+        "Tháng", options=month_options, default=month_values if month_values else []
+    )
+    # Lưu vào session state
+    st.session_state.month_values = month_values
+
+    # Tùy chọn bật filter định lượng - phụ thuộc vào tất cả các filter khác
+    dinh_luong_range = None
+    enable_dl_filter = st.sidebar.checkbox("Bật filter Định lượng (gsm)", value=False)
+    if enable_dl_filter:
+        # Lấy dữ liệu đã được filter bởi tất cả các filter khác (trừ định lượng)
+        df_for_dinh_luong = get_filtered_data_for_options(
+            df, p1_values, p2_values, brand_values, month_values, city_values, 
+            only_kg, remove_related_true, remove_related_false
+        )
+        
+        if "Định_lượng_numeric" in df_for_dinh_luong.columns and df_for_dinh_luong["Định_lượng_numeric"].notna().any():
+            dl_min = int(df_for_dinh_luong["Định_lượng_numeric"].min())
+            dl_max = int(df_for_dinh_luong["Định_lượng_numeric"].max())
+            
+            # Key cho slider để quản lý session state
+            slider_key = "dinh_luong_slider"
+            
+            # Kiểm tra và reset giá trị nếu nằm ngoài phạm vi
+            if slider_key in st.session_state:
+                old_value = st.session_state[slider_key]
+                # Nếu giá trị cũ nằm ngoài phạm vi mới, reset về giá trị mặc định
+                if old_value[0] < dl_min or old_value[0] > dl_max or old_value[1] < dl_min or old_value[1] > dl_max:
+                    st.session_state[slider_key] = (dl_min, dl_max)
+            
+            # Lấy giá trị hiện tại hoặc giá trị mặc định
+            current_value = st.session_state.get(slider_key, (dl_min, dl_max))
+            # Đảm bảo giá trị nằm trong phạm vi
+            current_value = (max(dl_min, min(current_value[0], dl_max)), max(dl_min, min(current_value[1], dl_max)))
+            
+            dinh_luong_range = st.sidebar.slider(
+                "Định lượng (gsm)",
+                min_value=dl_min,
+                max_value=dl_max,
+                value=current_value,
+                key=slider_key,
+            )
 
     filtered_valid, filtered_all = filter_data(
         df,
