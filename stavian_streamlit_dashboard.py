@@ -513,7 +513,7 @@ def create_text_filter_ui(df: pd.DataFrame, table_name: str, text_cols: list) ->
     
     # Hiển thị trong expander filter (cùng với filter số)
     st.markdown("---")
-    st.markdown("**Filter theo tên:**")
+    st.markdown("**Filter theo tên (có thể chọn nhiều seller để so sánh) :**")
     
     # Kiểm tra xem có cả SELLER và BUYER NAME không
     has_seller = "SELLER" in text_cols and "SELLER" in df.columns
@@ -755,29 +755,12 @@ def main():
         border-spacing: 0;
     }
     
-    /* Style cho tất cả table headers - làm đậm */
-    div[data-testid="stDataFrame"] table thead tr th,
-    div[data-testid="stDataFrame"] table thead th,
-    div[data-testid="stDataFrame"] thead tr th,
-    div[data-testid="stDataFrame"] thead th,
-    table thead tr th,
-    table thead th,
-    thead tr th,
-    thead th {
+    div[data-testid="stDataFrame"] table thead tr th {
         background: linear-gradient(135deg, #009793 0%, #00b8b3 100%) !important;
         color: white !important;
-        font-weight: 900 !important;
-        font-size: 1.05rem !important;
+        font-weight: 600 !important;
         padding: 12px !important;
         border: none !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
-    }
-    
-    /* Đảm bảo font-weight được áp dụng */
-    div[data-testid="stDataFrame"] table thead tr th *,
-    div[data-testid="stDataFrame"] table thead th * {
-        font-weight: 900 !important;
     }
     
     div[data-testid="stDataFrame"] table tbody tr {
@@ -1129,14 +1112,9 @@ def main():
                 use_container_width=True,
             )
             
-            # CSS để căn phải các cột số và làm đậm header
+            # CSS để căn phải các cột số
             st.markdown("""
             <style>
-            /* Làm đậm tên cột */
-            div[data-testid="stDataFrame"] table thead tr th {
-                font-weight: 900 !important;
-                font-size: 1.1rem !important;
-            }
             /* Căn phải tất cả các cột trừ cột đầu tiên */
             div[data-testid="stDataFrame"] table tbody tr td:not(:first-child),
             div[data-testid="stDataFrame"] table thead tr th:not(:first-child),
@@ -1198,14 +1176,9 @@ def main():
             use_container_width=True,
         )
         
-        # CSS để căn phải các cột số và làm đậm header - áp dụng ngay sau bảng
+        # CSS để căn phải các cột số - áp dụng ngay sau bảng với selector cụ thể
         st.markdown("""
         <style>
-        /* Làm đậm tên cột */
-        div[data-testid="stDataFrame"] table thead tr th {
-            font-weight: 900 !important;
-            font-size: 1.1rem !important;
-        }
         /* Căn phải cho cột Month (cột thứ 2) */
         div[data-testid="stDataFrame"] table tbody tr td:nth-child(2),
         div[data-testid="stDataFrame"] table thead tr th:nth-child(2) {
@@ -1308,14 +1281,9 @@ def main():
             use_container_width=True,
         )
         
-        # CSS để căn phải các cột số và làm đậm header
+        # CSS để căn phải các cột số
         st.markdown("""
         <style>
-        /* Làm đậm tên cột */
-        div[data-testid="stDataFrame"] table thead tr th {
-            font-weight: 900 !important;
-            font-size: 1.1rem !important;
-        }
         /* Căn phải tất cả các cột trừ cột đầu tiên */
         div[data-testid="stDataFrame"] table tbody tr td:not(:first-child),
         div[data-testid="stDataFrame"] table thead tr th:not(:first-child),
@@ -1459,14 +1427,9 @@ def main():
             use_container_width=True,
         )
         
-        # CSS để căn phải các cột số, căn trái SELLER và BUYER NAME, làm đậm header
+        # CSS để căn phải các cột số, căn trái SELLER và BUYER NAME
         st.markdown("""
         <style>
-        /* Làm đậm tên cột */
-        div[data-testid="stDataFrame"] table thead tr th {
-            font-weight: 900 !important;
-            font-size: 1.1rem !important;
-        }
         /* Căn phải các cột số (từ cột thứ 3 trở đi) */
         div[data-testid="stDataFrame"] table tbody tr td:nth-child(n+3),
         div[data-testid="stDataFrame"] table thead tr th:nth-child(n+3) {
