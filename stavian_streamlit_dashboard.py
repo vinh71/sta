@@ -12,6 +12,10 @@ ONEDRIVE_URL = (
     "https://stneuedu-my.sharepoint.com/:x:/r/personal/11230786_st_neu_edu_vn/"
     "IQAQAcg4aM2VT72GrMwPOZHYAToD1lpS-cKsOzmT3xoj91I?download=1"
 )
+ONEDRIVE_URL_ALT = (
+    "https://stneuedu-my.sharepoint.com/:x:/g/personal/11230786_st_neu_edu_vn/"
+    "IQAQAcg4aM2VT72GrMwPOZHYAToD1lpS-cKsOzmT3xoj91I?e=qa2xF1"
+)
 ONEDRIVE_URL_ALT = ONEDRIVE_URL  # có thể thay bằng link backup nếu cần
 
 
